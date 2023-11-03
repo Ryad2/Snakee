@@ -122,10 +122,10 @@ hit_test:
 ; BEGIN: get_input
 get_input:
 
-    ldw		t1,		BUTTONS(zero) ; state
-    ldw		t2,		(BUTTONS + 4)(zero) ; edgedet
+    ldw		t1,		BUTTONS(zero) ; t1 <- buttons state
+    ldw		t2,		(BUTTONS + 4)(zero) ; t2 <- edgedet
     ldw		t5,		HEAD_X(zero)
-    muli	t5,		t5,		8
+    muli	t5,		t5,		8 
     ldw		t6,		HEAD_Y(zero)
     add		t6,		t5,		t6
     ldw		t7,		GSA(t6) ; direction snake head
@@ -192,6 +192,24 @@ get_input:
 ; BEGIN: draw_array
 draw_array:
 
+    addi		t1,		zero,		96
+
+    loop:
+        subi	t1,		t1,		1
+        ldw		t2,		GSA(t1)
+        bne		t2,		zero,		pixel
+        bne		t1,		zero,		loop
+        
+        
+    pixel:
+        srli	t3,		t1,		3
+        andi	t4,		t1,		7
+        stw     a0,     t3
+        stw     a1,     t4
+        call		set_pixel
+        jmpi		loop
+        
+    
 ; END: draw_array
 
 
@@ -200,26 +218,112 @@ move_snake:
 
     ldw		t1,		HEAD_X(zero) ; previous x_position of our snake
     muli	t2,		t1,		8
-    ldw		t3,		HEAD_Y(zero) ; previous x_position of our snake
+    ldw		t3,		HEAD_Y(zero) ; previous y_position of our snake
     add		t2,		t2,		t3
     ldw		t2,		GSA(t2)  ; previous direction of our snake
 
-    cmpne	t4,     t2,		v0
-    cmpne	t5	    v0,		zero
+    cmpne	t4,	    v0,		zero
+    cmpnei	t5,		v0,		BUTTON_CHECKPOINT
     and		t5,		t4,		t5
-    bne     t5,     zero,   update_direction
+    beq     t5,     zero,   update_direction
+    add     t2,    zero,   v0
+    jmpi	update_direction
     
-
 
     update_direction:
-    add     t2,    zero,   v0
-    
-    stw     HEAD_X(zero),   t1
-    stw     HEAD_Y(zero),   t3
-    
-    
+        addi	t5,		zero,		1
+        
+        cmpeqi	t4,		t2,		DIR_LEFT
+        beq		t4,		t5,		move_head_left
 
+        cmpeqi	t4,		t2,		DIR_RIGHT
+        beq		t4,		t5,		move_head_right
+        
+        cmpeqi	t4,		t2,		DIR_UP
+        beq		t4,		t5,		move_head_up
 
+        cmpeqi	t4,		t2,		DIR_DOWN
+        beq		t4,		t5,		move_head_down
+        
+        
+    move_head_left:
+        subi		t1,		t1,		1
+        stw		    t1,		HEAD_X(zero)
+        jmpi		update_GSA
+        
+        
+    move_head_right:
+        addi      t1,		t1,		1
+        stw       t1,		HEAD_X(zero)
+        jmpi	  update_GSA
+
+    move_head_up:
+        subi       t3,     t3,     1
+        stw		   t3,		HEAD_Y(zero)
+        jmpi	   update_GSA
+
+    move_head_down:
+        subi      t3,		t3,		1
+        stw       t3,		HEAD_Y(zero)
+        jmpi	  update_GSA
+
+    update_head_GSA:
+        muli	t4,		t1,		8
+        add		t4,		t4,		t3
+        stw		t2,		GSA(t4)
+        beq		a0,		0,	update_tail
+        jmpi		return
+        
+    update_tail:
+        ldw		t1,		TAIL_X(zero) ; previous x_position of our tail
+        muli	t2,		t1,		8
+        ldw		t3,		TAIL_Y(zero) ; previous y_position of our tail
+        add		t2,		t2,		t3
+        ldw		t2,		GSA(t2)  ; previous direction of our tail
+        
+        addi	t5,		zero,		1
+        
+        cmpeqi	t4,		t2,		DIR_LEFT
+        beq		t4,		t5,		move_tail_left
+
+        cmpeqi	t4,		t2,		DIR_RIGHT
+        beq		t4,		t5,		move_tail_right
+        
+        cmpeqi	t4,		t2,		DIR_UP
+        beq		t4,		t5,		move_tail_up
+
+        cmpeqi	t4,		t2,		DIR_DOWN
+        beq		t4,		t5,		move_tail_down
+
+    move_tail_left:
+        subi		t1,		t1,		1
+        stw		    t1,		TAIL_X(zero)
+        jmpi		update_tail_GSA
+        
+        
+    move_tail_right:
+        addi       t1,		t1,		1
+        stw        t1,		TAIL_X(zero)
+        jmpi	   update_tail_GSA
+
+    move_tail_up:
+        subi       t3,     t3,     1
+        stw		   t3,		TAIL_Y(zero)
+        jmpi		update_tail_GSA
+
+    move_tail_down:
+        subi      t3,		t3,		1
+        stw       t3,		TAIL_Y(zero)
+        jmpi	    update_tail_GSA
+
+    update_tail_GSA:
+        muli	t4,		t1,		8
+        add		t4,		t4,		t3
+        stw		t2,		GSA(t4)
+        jmpi		return
+        
+    return:
+        jmp		ra
 
 ; END: move_snake
 
