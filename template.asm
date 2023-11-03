@@ -53,11 +53,19 @@ addi    sp, zero, LEDS
 ; return values
 ;     This procedure should never return.
 main:
-    call   clear_leds
-    addi  a0, zero, 5
-    addi  a1, zero, 3
-    call  set_pixel
-    call   clear_leds
+    stw		zero,		HEAD_X(zero)
+    stw		zero,		HEAD_Y(zero)
+    stw		zero,		TAIL_X(zero)
+    stw		zero,		TAIL_Y(zero)
+    addi	t1,		    zero,		4
+    stw		t1,		    GSA(zero)
+    
+    loop1 :
+        call    clear_leds
+        call	get_input
+        call	move_snake
+        call	draw_array
+        jmpi		loop1
     ; TODO: Finish this procedure.
 
     ret
@@ -125,9 +133,10 @@ get_input:
     ldw		t1,		BUTTONS(zero) ; t1 <- buttons state
     ldw		t2,		(BUTTONS + 4)(zero) ; t2 <- edgedet
     ldw		t5,		HEAD_X(zero)
-    muli	t5,		t5,		8 
+    slli	t5,	t5,		3 
     ldw		t6,		HEAD_Y(zero)
     add		t6,		t5,		t6
+    slli    t6,     t6,     2
     ldw		t7,		GSA(t6) ; direction snake head
 
     and		t3,		t1,		t2 ; pressed buttons
@@ -192,20 +201,21 @@ get_input:
 ; BEGIN: draw_array
 draw_array:
 
-    addi		t1,		zero,		96
+    addi		t3,		zero,		384
 
     loop:
-        subi	t1,		t1,		1
-        ldw		t2,		GSA(t1)
+        addi	t3,		t3,		-4
+        ldw		t2,		GSA(t3)
         bne		t2,		zero,		pixel
-        bne		t1,		zero,		loop
+        bne		t3,		zero,		loop
+        jmp		ra
         
         
     pixel:
-        srli	t3,		t1,		3
-        andi	t4,		t1,		7
-        stw     a0,     t3
-        stw     a1,     t4
+        srli	t4,		t3,		5
+        andi	t5,		t3,		28
+        add     a0,     zero,   t4
+        add     a1,     zero,   t5
         call		set_pixel
         jmpi		loop
         
@@ -217,9 +227,10 @@ draw_array:
 move_snake:
 
     ldw		t1,		HEAD_X(zero) ; previous x_position of our snake
-    muli	t2,		t1,		8
+    slli	t2,		t1,		3
     ldw		t3,		HEAD_Y(zero) ; previous y_position of our snake
     add		t2,		t2,		t3
+    slli	t2,		t2,		2
     ldw		t2,		GSA(t2)  ; previous direction of our snake
 
     cmpne	t4,	    v0,		zero
@@ -247,39 +258,43 @@ move_snake:
         
         
     move_head_left:
-        subi		t1,		t1,		1
+        addi		t1,		t1,		-1
         stw		    t1,		HEAD_X(zero)
-        jmpi		update_GSA
+        jmpi		update_head_GSA
         
         
     move_head_right:
         addi      t1,		t1,		1
         stw       t1,		HEAD_X(zero)
-        jmpi	  update_GSA
+        jmpi	  update_head_GSA
 
     move_head_up:
-        subi       t3,     t3,     1
+        addi       t3,     t3,     -1
         stw		   t3,		HEAD_Y(zero)
-        jmpi	   update_GSA
+        jmpi	   update_head_GSA
 
     move_head_down:
-        subi      t3,		t3,		1
+        addi      t3,		t3,		-1
         stw       t3,		HEAD_Y(zero)
-        jmpi	  update_GSA
+        jmpi	  update_head_GSA
 
     update_head_GSA:
-        muli	t4,		t1,		8
+        slli	t4,		t1,		3
         add		t4,		t4,		t3
+        slli	t4,		t4,		2
         stw		t2,		GSA(t4)
-        beq		a0,		0,	update_tail
+        beq		a0,		zero,	update_tail
         jmpi		return
         
     update_tail:
         ldw		t1,		TAIL_X(zero) ; previous x_position of our tail
-        muli	t2,		t1,		8
+        slli	t2,		t1,		3
         ldw		t3,		TAIL_Y(zero) ; previous y_position of our tail
-        add		t2,		t2,		t3
-        ldw		t2,		GSA(t2)  ; previous direction of our tail
+        add		t4,		t2,		t3
+        slli	t4,		t4,		2
+        ldw		t2,		GSA(t4)  ; previous direction of our tail
+        stw		zero,	GSA(t4)
+        
         
         addi	t5,		zero,		1
         
@@ -296,7 +311,7 @@ move_snake:
         beq		t4,		t5,		move_tail_down
 
     move_tail_left:
-        subi		t1,		t1,		1
+        addi		t1,		t1,		-1
         stw		    t1,		TAIL_X(zero)
         jmpi		update_tail_GSA
         
@@ -307,18 +322,19 @@ move_snake:
         jmpi	   update_tail_GSA
 
     move_tail_up:
-        subi       t3,     t3,     1
+        addi       t3,     t3,     -1
         stw		   t3,		TAIL_Y(zero)
         jmpi		update_tail_GSA
 
     move_tail_down:
-        subi      t3,		t3,		1
+        addi      t3,		t3,		-1
         stw       t3,		TAIL_Y(zero)
         jmpi	    update_tail_GSA
 
     update_tail_GSA:
-        muli	t4,		t1,		8
+        slli	t4,		t1,		3
         add		t4,		t4,		t3
+        slli		t4,		t4,		2
         stw		t2,		GSA(t4)
         jmpi		return
         
