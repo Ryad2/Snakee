@@ -131,37 +131,6 @@ set_pixel:
 ; BEGIN: display_score
 display_score:
 
-    ldw		t1,		SCORE(zero)
-    cmpgei  t2,		t1,		100
-    bne		t2,		zero,		up_to_hundred
-    add		t2,		zero,		zero
-    ldw     t6,		digit_map(zero)
-
-    div_10_loop:
-        cmrlti      t3,		t1,		10
-        bne		    t3,		zero,		div_10_loop_end
-        addi		t1,		t1,		-10
-        addi        t2,		t2,		1
-        br          div_10_loop
-
-    div_10_loop_end:
-        slli        t2,		t2,		2
-        slli        t1,		t1,		2
-        ldw        t4,		digit_map(t1)
-        ldw        t5,		digit_map(t2)
-        
-        stw        t4,		SEVEN_SEGS(zero)
-        stw        t5,		SEVEN_SEGS+4(zero)
-        stw        t6,	SEVEN_SEGS+8(zero)
-        stw        t6,	SEVEN_SEGS+12(zero)
-
-    up_to_hundred:
-        stw        t6,		SEVEN_SEGS(zero)
-        stw        t6,		SEVEN_SEGS+4 (zero)
-        stw        t6,	    SEVEN_SEGS+8(zero)
-        stw        t6,		SEVEN_SEGS+12(zero)
-        
-
 ; END: display_score
 
 
@@ -268,7 +237,7 @@ hit_test:
 get_input:
 
     ldw		t1,		BUTTONS(zero) ; t1 <- buttons state
-    xori    t1,     t1,     31 ; inverse active low buttons
+    xori    t1,     t1,    31 ; inverse active low buttons
     ldw		t2,		(BUTTONS + 4)(zero) ; t2 <- edgedet
     ldw		t5,		HEAD_X(zero)
     slli	t5,	    t5,		3 
@@ -495,33 +464,5 @@ restore_checkpoint:
 
 ; BEGIN: blink_score
 blink_score:
-    addi		t7,		zero,		3
-
-    loop_blink:
-
-        stw        zero,		SEVEN_SEGS(zero)
-        stw        zero,		SEVEN_SEGS+4 (zero)
-        stw        zero,	    SEVEN_SEGS+8(zero)
-        stw        zero,		SEVEN_SEGS+12(zero)
-        wait
-        call		display_score
-        addi        t7,		t7,		-1
-        bne		    t7,		zero,		loop_blink
-        jmp		    ra
-    
-        
 
 ; END: blink_score
-
-; digit map
-digit_map:
-    .word 0xFC ; 0
-    .word 0x60 ; 1
-    .word 0xDA ; 2
-    .word 0xF2 ; 3
-    .word 0x66 ; 4
-    .word 0xB6 ; 5
-    .word 0xBE ; 6
-    .word 0xE0 ; 7
-    .word 0xFE ; 8
-    .word 0xF6 ; 9
