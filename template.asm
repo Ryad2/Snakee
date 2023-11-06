@@ -54,12 +54,12 @@ addi    sp, zero, LEDS
 ;     This procedure should never return.
 main:
     ; main up to draw_array
-    stw		zero,		HEAD_X(zero)
-    stw		zero,		HEAD_Y(zero)
-    stw		zero,		TAIL_X(zero)
-    stw		zero,		TAIL_Y(zero)
-    addi	t1,		    zero,		1
-    stw		t1,		    GSA(zero)
+    ;stw		zero,		HEAD_X(zero)
+    ;stw		zero,		HEAD_Y(zero)
+    ;stw		zero,		TAIL_X(zero)
+    ;stw		zero,		TAIL_Y(zero)
+    ;addi	t1,		    zero,		1
+    ;stw		t1,		    GSA(zero)
     ;
     ;loop1 :
     ;    call    clear_leds
@@ -67,34 +67,88 @@ main:
     ;    call	move_snake
     ;    call	draw_array
     ;    jmpi		loop1
-    game:
-        call		clear_leds
-        call		get_input
-        call        hit_test
-        beq         v0,     zero,   call_move_draw
-        addi        s1,     zero,   1
-        beq         v0,     s1,     call_create_food
-        addi        s1,     zero,   2
-        beq         v0,     s1,     end_game
+    ;game:
+    ;    call		clear_leds
+    ;    call		get_input
+    ;    call        hit_test
+    ;    beq         v0,     zero,   call_move_draw
+    ;    addi        s1,     zero,   1
+    ;    beq         v0,     s1,     call_create_food
+    ;    addi        s1,     zero,   2
+    ;    beq         v0,     s1,     end_game
+;
+    ;    jmpi        game
+    ;    
+    ;    call_create_food:
+    ;        call    create_food
+    ;        jmpi    game
+    ;
+    ;    call_move_draw:
+    ;        call       move_snake
+    ;        call       draw_array
+    ;        jmpi       game  
+;
+    ;    end_game:
+    ;        ret
 
-        jmpi        game
+    stw		zero,		CP_VALID(zero)
+    addi	s5,		zero,		5       ; s1 <- checkpoint button return value
+    addi    s1,     zero,       1       
+    addi    s2,     zero,       2       
+    
+    init_game_label:
+        call		init_game
+    
+    get_input_label:
+        call        wait_procedure
+        call        get_input
+    
+    beq         v0,     s1,     restore_checkpoint_label
+    
+    call        hit_test
+    
+    beq         v0,     s1,   eat_update_label
+    beq         v0,     s2,   init_game_label
+    
+    call        move_snake
+    
+    clear_and_draw_label:
+        call        clear_leds
+        call        draw_array
+        br          get_input_label 
         
-        call_create_food:
-            call    create_food
-            jmpi    game
-    
-        call_move_draw:
-            call       move_snake
-            call       draw_array
-            jmpi       game  
+    restore_checkpoint_label:
+        call        restore_checkpoint
+        beq		    v0,		zero,		get_input
+        br		    blink_score_label
 
-        end_game:
-            ret
+    eat_update_label:
+        ldw		    s6,		SCORE(zero)
+        addi		s6,		s6,		1
+        stw		    s6,		SCORE(zero)
+        
+        call        display_score
+        call        move_snake
+        call        create_food
+        call        save_checkpoint
+        beq		    v0,		zero,		clear_and_draw_label
+        br          blink_score_label
     
+    blink_score_label:
+        call        blink_score
+        br          clear_and_draw_label
+
     ; TODO: Finish this procedure.
 
     ret
 
+wait_procedure:
+    addi		t1,		zero,		30 000 000
+    wait_loop:
+        addi	t1,		t1,		-1
+        bne		t1,		zero,		wait_loop
+        jmp		ra
+    
 
 ; BEGIN: clear_leds
 clear_leds:
@@ -167,6 +221,17 @@ display_score:
 
 ; BEGIN: init_game
 init_game:
+
+    stw		zero,		HEAD_X(zero)
+    stw		zero,		HEAD_Y(zero)
+    stw		zero,		TAIL_X(zero)
+    stw		zero,		TAIL_Y(zero)
+    addi	t1,		    zero,		4
+    stw		t1,		    GSA(zero)
+    stw		zero,		SCORE(zero)
+    
+    call    create_food
+    call	draw_array
 
 ; END: init_game
 
@@ -484,11 +549,56 @@ move_snake:
 ; BEGIN: save_checkpoint
 save_checkpoint:
 
+    ldw        t1,		SCORE(zero)
+
+    loop_multipl_ten:
+        cmplti      t2,		t1,		10
+        bne		    t2,		zero,		exit_loop
+        addi		t1,		t1,		-10
+        br          loop_multipl_ten
+
+    exit_loop:
+        bne		t1,		zero,		checkpoint_ret
+        addi	v0,		zero,		1
+        stw		v0,		CP_VALID(zero)
+        
+    addi		t1,		zero,		198
+
+    copy_loop:
+        addi    t1,     t1,     -4
+        ldw     t2,		   HEAD_X(t1)
+        stw     t2,		   CP_HEAD_X(t1)
+        bne		t1,		zero,		copy_loop
+
+    jmp ra
+        
+    checkpoint_ret:
+        add		v0,		zero,		zero
+        jmp		ra
+        
 ; END: save_checkpoint
 
 
 ; BEGIN: restore_checkpoint
 restore_checkpoint:
+
+    ldw		t1,		CP_VALID(zero)
+    beq		t1,		zero,		checkpoint_restore_ret
+    
+
+    addi		t1,		zero,		198
+    restore_loop:
+        addi    t1,     t1,     -4
+        ldw     t2,		   CP_HEAD_X(t1)
+        stw     t2,		   HEAD_X(t1)
+        bne		t1,		zero,		restore_loop
+    
+    addi		v0,		zero,		1
+    jmp		ra
+
+    checkpoint_restore_ret:
+        add		v0,		zero,		zero
+        jmp		ra
 
 ; END: restore_checkpoint
 
@@ -503,7 +613,7 @@ blink_score:
         stw        zero,		SEVEN_SEGS+4 (zero)
         stw        zero,	    SEVEN_SEGS+8(zero)
         stw        zero,		SEVEN_SEGS+12(zero)
-        wait
+        call        wait_procedure
         call		display_score
         addi        t7,		t7,		-1
         bne		    t7,		zero,		loop_blink
