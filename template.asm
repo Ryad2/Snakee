@@ -102,32 +102,37 @@ main:
     get_input_label:
         call        wait_procedure
         call        get_input
+        add		    a3,		zero,		v0
+        
     
     beq         v0,     s1,     restore_checkpoint_label
     
     call        hit_test
     
-    beq         v0,     s1,   eat_update_label
-    beq         v0,     s2,   init_game_label
+    beq         v0,     s1,         eat_update_label
+    add		    a0,		zero,		zero
+    beq         v0,     s2,         init_game_label
     
     call        move_snake
     
     clear_and_draw_label:
         call        clear_leds
         call        draw_array
-        br          get_input_label 
+        br          get_input_label
         
     restore_checkpoint_label:
         call        restore_checkpoint
-        beq		    v0,		zero,		get_input
+        beq		    v0,		zero,		get_input_label
         br		    blink_score_label
 
     eat_update_label:
+        addi		a0,		zero,		1
         ldw		    s6,		SCORE(zero)
         addi		s6,		s6,		1
         stw		    s6,		SCORE(zero)
         
         call        display_score
+
         call        move_snake
         call        create_food
         call        save_checkpoint
@@ -143,10 +148,11 @@ main:
     ret
 
 wait_procedure:
-    addi		t1,		zero,		30 000 000
-    wait_loop:
-        addi	t1,		t1,		-1
-        bne		t1,		zero,		wait_loop
+    ;addi		t1,		zero,		2000
+    ;slli        t1,     t1,         10
+    ;wait_loop:
+    ;    addi	t1,		t1,		-1
+    ;    bne		t1,		zero,		wait_loop
         jmp		ra
     
 
@@ -192,7 +198,7 @@ display_score:
     ldw     t6,		digit_map(zero)
 
     div_10_loop:
-        cmrlti      t3,		t1,		10
+        cmplti      t3,		t1,		10
         bne		    t3,		zero,		div_10_loop_end
         addi		t1,		t1,		-10
         addi        t2,		t2,		1
@@ -222,6 +228,9 @@ display_score:
 ; BEGIN: init_game
 init_game:
 
+    addi	sp,		sp,		-4
+    stw		ra,		0(sp)
+    
     stw		zero,		HEAD_X(zero)
     stw		zero,		HEAD_Y(zero)
     stw		zero,		TAIL_X(zero)
@@ -232,6 +241,12 @@ init_game:
     
     call    create_food
     call	draw_array
+    call	display_score
+
+    ldw		ra,		0(sp)
+    addi	sp,		sp,		4
+    jmp		ra
+    
 
 ; END: init_game
 
@@ -240,7 +255,8 @@ init_game:
 create_food:
 
     generate_random:
-        ldw		    t1,		RANDOM_NUM(zero)
+        ;ldw		    t1,		RANDOM_NUM(zero)
+		addi t1, zero, 37
         andi		t1,		t1,		255 ;  take lowest byte
         cmplti		t2,		t1,		96  ;  check if is in GSA bound
         beq		    t2,		zero,		generate_random
@@ -403,15 +419,16 @@ get_input:
 
 ; BEGIN: draw_array
 draw_array:
-
+    addi    sp,     sp,     -4
+    stw     ra,     0(sp)
     addi		t3,		zero,		384
 
     loop:
+        beq		t3,		zero,		return_draw
         addi	t3,		t3,		-4
         ldw		t2,		GSA(t3)
         bne		t2,		zero,		pixel
-        bne		t3,		zero,		loop
-        jmp		ra
+        br		loop
         
         
     pixel:
@@ -421,6 +438,12 @@ draw_array:
         add     a1,     zero,   t5
         call		set_pixel
         jmpi		loop
+
+    return_draw:
+        ldw		ra,		0(sp)
+        addi	sp,		sp,		4
+        jmp		ra
+    
 
 ; END: draw_array
 
@@ -435,11 +458,11 @@ move_snake:
     slli	t2,		t2,		2
     ldw		t2,		GSA(t2)  ; previous direction of our snake
 
-    cmpne	t4,	    v0,		zero
-    cmpnei	t5,		v0,		BUTTON_CHECKPOINT
+    cmpne	t4,	    a3,		zero
+    cmpnei	t5,		a3,		BUTTON_CHECKPOINT
     and		t5,		t4,		t5
     beq     t5,     zero,   update_direction
-    add     t2,    zero,   v0
+    add     t2,    zero,   a3
     jmpi	update_direction
     
 
@@ -605,6 +628,9 @@ restore_checkpoint:
 
 ; BEGIN: blink_score
 blink_score:
+    addi       sp,     sp,     -4
+    stw        ra,     0(sp)
+
     addi		t7,		zero,		3
 
     loop_blink:
@@ -617,6 +643,10 @@ blink_score:
         call		display_score
         addi        t7,		t7,		-1
         bne		    t7,		zero,		loop_blink
+
+        ldw         ra,		0(sp)
+        addi        sp,		sp,		4
+        
         jmp		    ra
     
         
