@@ -105,7 +105,7 @@ main:
         add		    a3,		zero,		v0
         
     
-    beq         v0,     s1,     restore_checkpoint_label
+    beq         v0,     s5,     restore_checkpoint_label
     
     call        hit_test
     
@@ -148,11 +148,11 @@ main:
     ret
 
 wait_procedure:
-    ;addi		t1,		zero,		2000
-    ;slli        t1,     t1,         10
-    ;wait_loop:
-    ;    addi	t1,		t1,		-1
-    ;    bne		t1,		zero,		wait_loop
+    addi		t1,		zero,		8000
+    slli        t1,     t1,         10
+    wait_loop:
+        addi	t1,		t1,		-1
+        bne		t1,		zero,		wait_loop
         jmp		ra
     
 
@@ -210,17 +210,17 @@ display_score:
         ldw        t4,		digit_map(t1)
         ldw        t5,		digit_map(t2)
         
-        stw        t4,		SEVEN_SEGS(zero)
-        stw        t5,		SEVEN_SEGS+4(zero)
-        stw        t6,	    SEVEN_SEGS+8(zero)
-        stw        t6,	    SEVEN_SEGS+12(zero)
+        stw        t4,		SEVEN_SEGS+12(zero)
+        stw        t5,		SEVEN_SEGS+8(zero)
+        stw        t6,	    SEVEN_SEGS+4(zero)
+        stw        t6,	    SEVEN_SEGS(zero)
         jmp		ra
 
     up_to_hundred:
-        stw        t6,		SEVEN_SEGS(zero)
+        stw        t6,		SEVEN_SEGS+12(zero)
         stw        t6,		SEVEN_SEGS+4 (zero)
         stw        t6,	    SEVEN_SEGS+8(zero)
-        stw        t6,		SEVEN_SEGS+12(zero)
+        stw        t6,		SEVEN_SEGS(zero)
         jmp		ra
 
 ; END: display_score
@@ -231,15 +231,26 @@ init_game:
 
     addi	sp,		sp,		-4
     stw		ra,		0(sp)
+
+    addi		t2,		zero,		384
     
-    stw		zero,		HEAD_X(zero)
-    stw		zero,		HEAD_Y(zero)
-    stw		zero,		TAIL_X(zero)
-    stw		zero,		TAIL_Y(zero)
-    addi	t1,		    zero,		4
-    stw		t1,		    GSA(zero)
-    stw		zero,		SCORE(zero)
+    init_loop:
+        beq		t2,		zero,		return_init
+        addi	t2,		t2,		-4
+        stw		zero,		GSA(t2)
+        br		init_loop
     
+    return_init:
+        call		draw_array
+        call		wait_procedure
+        stw		zero,		HEAD_X(zero)
+        stw		zero,		HEAD_Y(zero)
+        stw		zero,		TAIL_X(zero)
+        stw		zero,		TAIL_Y(zero)
+        addi	t1,		    zero,		4
+        stw		t1,		    GSA(zero)
+        stw		zero,		SCORE(zero)
+
     call    create_food
     call	draw_array
     call	display_score
@@ -247,7 +258,7 @@ init_game:
     ldw		ra,		0(sp)
     addi	sp,		sp,		4
     jmp		ra
-    
+
 
 ; END: init_game
 
@@ -256,8 +267,8 @@ init_game:
 create_food:
 
     generate_random:
-        ;ldw		    t1,		RANDOM_NUM(zero)
-		addi        t1,     zero,   37
+        ldw		    t1,		RANDOM_NUM(zero)
+		;addi        t1,     zero,   37
         andi		t1,		t1,		255 ;  take lowest byte
         cmplti		t2,		t1,		96  ;  check if is in GSA bound
         beq		    t2,		zero,		generate_random
@@ -292,7 +303,7 @@ hit_test:
     cmpeqi	t4,		t2,		DIR_UP
     beq		t4,		t5,		up
     cmpeqi	t4,		t2,		DIR_DOWN
-    beq		t4,		t5,		move_head_down 
+    beq		t4,		t5,		down
         
     left:
         addi		t1,		t1,		-1
@@ -307,7 +318,7 @@ hit_test:
         br	    test_collision
 
     down:
-        addi        t3,		t3,		-1
+        addi        t3,		t3,		1
         br	    test_collision
 
     test_collision:
@@ -316,7 +327,7 @@ hit_test:
         or             t2,   t2,    t4
 
         cmpeqi         t4,   t3,    -1
-        cmpeqi         t5,   t3,    8
+        cmpeqi         t5,   t3,    9
         or             t4,   t4,    t5
 
         or             t2,   t2,    t4
