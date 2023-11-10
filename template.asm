@@ -177,9 +177,9 @@ set_pixel:
     
     ldw     t5,		LEDS(t2)
     addi    t6,		zero,	1 ; t6 -> 1
-    slli		t7,		t1,		3 ; t7 -> x mod 4
-    add     t7,		t7,		a1 ; t7 += y
-    sll		t6,		t6,		t7 ; t6 -> 1 << (x mod 4) + y
+    slli	t1,		t1,		3 ; t1 -> x mod4 * 8
+    add     t1,		t1,		a1 ; t1 += y
+    sll		t6,		t6,		t1 ; t6 -> 1 << (x mod 4) + y
     or      t5,		t5,		t6 ; putting the new pixel in t5
     stw		t5,		LEDS(t2) ; storing the new pixel in the right place
 
@@ -212,15 +212,16 @@ display_score:
         
         stw        t4,		SEVEN_SEGS(zero)
         stw        t5,		SEVEN_SEGS+4(zero)
-        stw        t6,	SEVEN_SEGS+8(zero)
-        stw        t6,	SEVEN_SEGS+12(zero)
+        stw        t6,	    SEVEN_SEGS+8(zero)
+        stw        t6,	    SEVEN_SEGS+12(zero)
+        jmp		ra
 
     up_to_hundred:
         stw        t6,		SEVEN_SEGS(zero)
         stw        t6,		SEVEN_SEGS+4 (zero)
         stw        t6,	    SEVEN_SEGS+8(zero)
         stw        t6,		SEVEN_SEGS+12(zero)
-        
+        jmp		ra
 
 ; END: display_score
 
@@ -256,7 +257,7 @@ create_food:
 
     generate_random:
         ;ldw		    t1,		RANDOM_NUM(zero)
-		addi t1, zero, 37
+		addi        t1,     zero,   37
         andi		t1,		t1,		255 ;  take lowest byte
         cmplti		t2,		t1,		96  ;  check if is in GSA bound
         beq		    t2,		zero,		generate_random
@@ -295,19 +296,19 @@ hit_test:
         
     left:
         addi		t1,		t1,		-1
-        jmpi		test_collision  
+        br		test_collision  
         
     right:
         addi        t1,		t1,		1
-        jmpi	    test_collision
+        br	    test_collision
 
     up:
         addi        t3,     t3,     -1
-        jmpi	    test_collision
+        br	    test_collision
 
     down:
         addi        t3,		t3,		-1
-        jmpi	    test_collision
+        br	    test_collision
 
     test_collision:
         cmpeqi         t2,   t1,    12
@@ -348,31 +349,27 @@ hit_test:
 ; BEGIN: get_input
 get_input:
 
-    ldw		t1,		BUTTONS(zero) ; t1 <- buttons state
-    xori    t1,     t1,     31 ; inverse active low buttons
-    ldw		t2,		(BUTTONS + 4)(zero) ; t2 <- edgedet
+    ldw		t3,		(BUTTONS + 4)(zero) ; t2 <- edgedet
+    stw     zero,   (BUTTONS + 4)(zero)
     ldw		t5,		HEAD_X(zero)
     slli	t5,	    t5,		3 
     ldw		t6,		HEAD_Y(zero)
     add		t6,		t5,		t6
     slli    t6,     t6,     2
     ldw		t7,		GSA(t6) ; direction snake head
-
-    and		t3,		t1,		t2 ; pressed buttons
     
-    slli	t4,		t3,		4
+    srli	t4,		t3,		4
     bne		t4,		zero,	checkpoint_pres
-    
 
-    slli	t4,		t3,		3
+    srli	t4,		t3,		3
     bne		t4,		zero,	right_pres 
 
     
-    slli	t4,		t3,		2
+    srli	t4,		t3,		2
     bne		t4,		zero,	down_pres
     
 
-    slli	t4,		t3,		1
+    srli	t4,		t3,		1
     bne		t4,		zero,	up_pres
     
 
@@ -384,6 +381,7 @@ get_input:
 
     checkpoint_pres: 
         addi	v0,		zero,	BUTTON_CHECKPOINT
+
         jmp		ra
 
     right_pres: 
@@ -432,19 +430,19 @@ draw_array:
         
         
     pixel:
-        srli	t4,		t3,		5
-        andi	t5,		t3,		28
+        srli	t6,		t3,		2
+        srli	t4,		t6,		3
+        andi	t5,		t6,		7
         add     a0,     zero,   t4
         add     a1,     zero,   t5
         call		set_pixel
-        jmpi		loop
+        br		loop
 
     return_draw:
         ldw		ra,		0(sp)
         addi	sp,		sp,		4
         jmp		ra
     
-
 ; END: draw_array
 
 
@@ -455,15 +453,16 @@ move_snake:
     slli	t2,		t1,		3
     ldw		t3,		HEAD_Y(zero) ; previous y_position of our snake
     add		t2,		t2,		t3
-    slli	t2,		t2,		2
-    ldw		t2,		GSA(t2)  ; previous direction of our snake
+    slli	t6,		t2,		2
+    ldw		t2,		GSA(t6)  ; previous direction of our snake
 
     cmpne	t4,	    a3,		zero
     cmpnei	t5,		a3,		BUTTON_CHECKPOINT
     and		t5,		t4,		t5
     beq     t5,     zero,   update_direction
     add     t2,    zero,   a3
-    jmpi	update_direction
+    stw		t2,		GSA(t6)
+    br	update_direction
     
 
     update_direction:
@@ -485,23 +484,23 @@ move_snake:
     move_head_left:
         addi		t1,		t1,		-1
         stw		    t1,		HEAD_X(zero)
-        jmpi		update_head_GSA
+        br		update_head_GSA
         
         
     move_head_right:
         addi      t1,		t1,		1
         stw       t1,		HEAD_X(zero)
-        jmpi	  update_head_GSA
+        br	  update_head_GSA
 
     move_head_up:
         addi       t3,     t3,     -1
         stw		   t3,		HEAD_Y(zero)
-        jmpi	   update_head_GSA
+        br	   update_head_GSA
 
     move_head_down:
-        addi      t3,		t3,		-1
+        addi      t3,		t3,		1
         stw       t3,		HEAD_Y(zero)
-        jmpi	  update_head_GSA
+        br	  update_head_GSA
 
     update_head_GSA:
         slli	t4,		t1,		3
@@ -509,7 +508,7 @@ move_snake:
         slli	t4,		t4,		2
         stw		t2,		GSA(t4)
         beq		a0,		zero,	update_tail
-        jmpi		return
+        br		return
         
     update_tail:
         ldw		t1,		TAIL_X(zero) ; previous x_position of our tail
@@ -517,7 +516,7 @@ move_snake:
         ldw		t3,		TAIL_Y(zero) ; previous y_position of our tail
         add		t4,		t2,		t3
         slli	t4,		t4,		2
-        ldw		t2,		GSA(t4)  ; previous direction of our tail
+        ldw		t2,		GSA(t4)      ; previous direction of our tail
         stw		zero,	GSA(t4)
         
         
@@ -538,30 +537,30 @@ move_snake:
     move_tail_left:
         addi		t1,		t1,		-1
         stw		    t1,		TAIL_X(zero)
-        jmpi		update_tail_GSA
+        br		update_tail_GSA
         
         
     move_tail_right:
         addi       t1,		t1,		1
         stw        t1,		TAIL_X(zero)
-        jmpi	   update_tail_GSA
+        br	   update_tail_GSA
 
     move_tail_up:
         addi       t3,     t3,     -1
         stw		   t3,		TAIL_Y(zero)
-        jmpi		update_tail_GSA
+        br		update_tail_GSA
 
     move_tail_down:
-        addi      t3,		t3,		-1
+        addi      t3,		t3,		1
         stw       t3,		TAIL_Y(zero)
-        jmpi	    update_tail_GSA
+        br	    update_tail_GSA
 
     update_tail_GSA:
         slli	t4,		t1,		3
         add		t4,		t4,		t3
         slli		t4,		t4,		2
         stw		t2,		GSA(t4)
-        jmpi		return
+        br		return
         
     return:
         jmp		ra
