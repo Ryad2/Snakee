@@ -53,57 +53,19 @@ addi    sp, zero, LEDS
 ; return values
 ;     This procedure should never return.
 main:
-    ; main up to draw_array
-    ;stw		zero,		HEAD_X(zero)
-    ;stw		zero,		HEAD_Y(zero)
-    ;stw		zero,		TAIL_X(zero)
-    ;stw		zero,		TAIL_Y(zero)
-    ;addi	t1,		    zero,		1
-    ;stw		t1,		    GSA(zero)
-    ;
-    ;loop1 :
-    ;    call    clear_leds
-    ;    call	get_input
-    ;    call	move_snake
-    ;    call	draw_array
-    ;    jmpi		loop1
-    ;game:
-    ;    call		clear_leds
-    ;    call		get_input
-    ;    call        hit_test
-    ;    beq         v0,     zero,   call_move_draw
-    ;    addi        s1,     zero,   1
-    ;    beq         v0,     s1,     call_create_food
-    ;    addi        s1,     zero,   2
-    ;    beq         v0,     s1,     end_game
-;
-    ;    jmpi        game
-    ;    
-    ;    call_create_food:
-    ;        call    create_food
-    ;        jmpi    game
-    ;
-    ;    call_move_draw:
-    ;        call       move_snake
-    ;        call       draw_array
-    ;        jmpi       game  
-;
-    ;    end_game:
-    ;        ret
+    addi	s5,		zero,		5       ; s5 <- checkpoint button return value
+    addi    s1,     zero,       1       ; s1 <- 1
+    addi    s2,     zero,       2       ; s2 <- 2
 
     stw		zero,		CP_VALID(zero)
-    addi	s5,		zero,		5       ; s1 <- checkpoint button return value
-    addi    s1,     zero,       1       
-    addi    s2,     zero,       2       
     
     init_game_label:
+        call		clear_leds
         call		init_game
     
     get_input_label:
         call        wait_procedure
         call        get_input
-        add		    a3,		zero,		v0
-        
     
     beq         v0,     s5,     restore_checkpoint_label
     
@@ -158,12 +120,9 @@ wait_procedure:
 
 ; BEGIN: clear_leds
 clear_leds:
-    addi		t1,		zero,		4
-    addi        t2,		zero,		8
-    
     stw		zero,		LEDS(zero) 
-    stw		zero,		LEDS(t1)
-    stw		zero,		LEDS(t2)
+    stw		zero,		LEDS+4(zero)
+    stw		zero,		LEDS+8(zero)
 
     jmp    ra
 ; END: clear_leds
@@ -184,13 +143,11 @@ set_pixel:
     stw		t5,		LEDS(t2) ; storing the new pixel in the right place
 
     jmp    ra
-
 ; END: set_pixel
 
 
 ; BEGIN: display_score
 display_score:
-
     ldw		t1,		SCORE(zero)
     cmpgei  t2,		t1,		100
     bne		t2,		zero,		up_to_hundred
@@ -222,13 +179,11 @@ display_score:
         stw        t6,	    SEVEN_SEGS+8(zero)
         stw        t6,		SEVEN_SEGS(zero)
         jmp		ra
-
 ; END: display_score
 
 
 ; BEGIN: init_game
 init_game:
-
     addi	sp,		sp,		-4
     stw		ra,		0(sp)
 
@@ -241,8 +196,6 @@ init_game:
         br		init_loop
     
     return_init:
-        call		draw_array
-        call		wait_procedure
         stw		zero,		HEAD_X(zero)
         stw		zero,		HEAD_Y(zero)
         stw		zero,		TAIL_X(zero)
@@ -258,17 +211,13 @@ init_game:
     ldw		ra,		0(sp)
     addi	sp,		sp,		4
     jmp		ra
-
-
 ; END: init_game
 
 
 ; BEGIN: create_food
 create_food:
-
     generate_random:
         ldw		    t1,		RANDOM_NUM(zero)
-		;addi        t1,     zero,   37
         andi		t1,		t1,		255 ;  take lowest byte
         cmplti		t2,		t1,		96  ;  check if is in GSA bound
         beq		    t2,		zero,		generate_random
@@ -280,13 +229,11 @@ create_food:
     stw		    t2,		GSA(t1)
 
     jmp		ra
-    
 ; END: create_food
 
 
 ; BEGIN: hit_test
 hit_test:
-
     ldw		t1,		HEAD_X(zero) ; previous x_position of our snake
     slli	t2,		t1,		3
     ldw		t3,		HEAD_Y(zero) ; previous y_position of our snake
@@ -353,15 +300,14 @@ hit_test:
     no_collision:
         addi		   v0,		zero,		0
         jmp		       ra
-    
 ; END: hit_test
 
 
 ; BEGIN: get_input
 get_input:
-
     ldw		t3,		(BUTTONS + 4)(zero) ; t2 <- edgedet
     stw     zero,   (BUTTONS + 4)(zero)
+
     ldw		t5,		HEAD_X(zero)
     slli	t5,	    t5,		3 
     ldw		t6,		HEAD_Y(zero)
@@ -374,55 +320,52 @@ get_input:
 
     srli	t4,		t3,		3
     bne		t4,		zero,	right_pres 
-
     
     srli	t4,		t3,		2
     bne		t4,		zero,	down_pres
-    
 
     srli	t4,		t3,		1
     bne		t4,		zero,	up_pres
-    
 
     bne		t3,		zero,	left_pres
 
     addi	v0,		zero,	BUTTON_NONE
     jmp		ra
 
-
     checkpoint_pres: 
         addi	v0,		zero,	BUTTON_CHECKPOINT
-
         jmp		ra
 
     right_pres: 
-        addi	t1,		zero,	BUTTON_LEFT
-        beq		t7,		t1,		none_pres
         addi	v0,		zero,	BUTTON_RIGHT
+        addi	t1,		zero,	BUTTON_LEFT
+        beq		t7,		t1,		opposite_dir
+        stw		v0,		GSA(t6)
         jmp		ra
 
     down_pres: 
-        addi	t1,		zero,	BUTTON_UP
-        beq		t7,		t1,		none_pres
         addi	v0,		zero,	BUTTON_DOWN
+        addi	t1,		zero,	BUTTON_UP
+        beq		t7,		t1,		opposite_dir
+        stw		v0,		GSA(t6)
         jmp		ra
         
     up_pres: 
-        addi	t1,		zero,	BUTTON_DOWN
-        beq		t7,		t1,		none_pres
         addi	v0,	    zero,	BUTTON_UP
+        addi	t1,		zero,	BUTTON_DOWN
+        beq		t7,		t1,		opposite_dir
+        stw		v0,		GSA(t6)
         jmp		ra
         
     left_pres: 
-        addi	t1,		zero,	BUTTON_RIGHT
-        beq		t7,		t1,		none_pres
         addi	v0,		zero,	BUTTON_LEFT
+        addi	t1,		zero,	BUTTON_RIGHT
+        beq		t7,		t1,		opposite_dir
+        stw		v0,		GSA(t6)
         jmp		ra
     
-    none_pres:
-        addi	v0,		zero,	BUTTON_NONE
+    opposite_dir:
         jmp		ra
-    
 ; END: get_input
 
 
@@ -439,7 +382,6 @@ draw_array:
         bne		t2,		zero,		pixel
         br		loop
         
-        
     pixel:
         srli	t6,		t3,		2
         srli	t4,		t6,		3
@@ -453,50 +395,35 @@ draw_array:
         ldw		ra,		0(sp)
         addi	sp,		sp,		4
         jmp		ra
-    
 ; END: draw_array
 
 
 ; BEGIN: move_snake
 move_snake:
-
     ldw		t1,		HEAD_X(zero) ; previous x_position of our snake
     slli	t2,		t1,		3
     ldw		t3,		HEAD_Y(zero) ; previous y_position of our snake
     add		t2,		t2,		t3
     slli	t6,		t2,		2
     ldw		t2,		GSA(t6)  ; previous direction of our snake
-
-    cmpne	t4,	    a3,		zero
-    cmpnei	t5,		a3,		BUTTON_CHECKPOINT
-    and		t5,		t4,		t5
-    beq     t5,     zero,   update_direction
-    add     t2,    zero,   a3
-    stw		t2,		GSA(t6)
-    br	update_direction
     
-
-    update_direction:
-        addi	t5,		zero,		1
-        
-        cmpeqi	t4,		t2,		DIR_LEFT
-        beq		t4,		t5,		move_head_left
-
-        cmpeqi	t4,		t2,		DIR_RIGHT
-        beq		t4,		t5,		move_head_right
-        
-        cmpeqi	t4,		t2,		DIR_UP
-        beq		t4,		t5,		move_head_up
-
-        cmpeqi	t4,		t2,		DIR_DOWN
-        beq		t4,		t5,		move_head_down
+    addi	t5,		zero,		1
+    
+    cmpeqi	t4,		t2,		DIR_LEFT
+    beq		t4,		t5,		move_head_left
+    cmpeqi	t4,		t2,		DIR_RIGHT
+    beq		t4,		t5,		move_head_right
+    
+    cmpeqi	t4,		t2,		DIR_UP
+    beq		t4,		t5,		move_head_up
+    cmpeqi	t4,		t2,		DIR_DOWN
+    beq		t4,		t5,		move_head_down
         
         
     move_head_left:
         addi		t1,		t1,		-1
         stw		    t1,		HEAD_X(zero)
         br		update_head_GSA
-        
         
     move_head_right:
         addi      t1,		t1,		1
@@ -530,7 +457,6 @@ move_snake:
         ldw		t2,		GSA(t4)      ; previous direction of our tail
         stw		zero,	GSA(t4)
         
-        
         addi	t5,		zero,		1
         
         cmpeqi	t4,		t2,		DIR_LEFT
@@ -548,45 +474,35 @@ move_snake:
     move_tail_left:
         addi		t1,		t1,		-1
         stw		    t1,		TAIL_X(zero)
-        br		update_tail_GSA
-        
+        br		return
         
     move_tail_right:
         addi       t1,		t1,		1
         stw        t1,		TAIL_X(zero)
-        br	   update_tail_GSA
+        br	   return
 
     move_tail_up:
         addi       t3,     t3,     -1
         stw		   t3,		TAIL_Y(zero)
-        br		update_tail_GSA
+        br		return
 
     move_tail_down:
         addi      t3,		t3,		1
         stw       t3,		TAIL_Y(zero)
-        br	    update_tail_GSA
-
-    update_tail_GSA:
-        slli	t4,		t1,		3
-        add		t4,		t4,		t3
-        slli		t4,		t4,		2
-        stw		t2,		GSA(t4)
-        br		return
+        br	    return
         
     return:
         jmp		ra
-
 ; END: move_snake
 
 
 ; BEGIN: save_checkpoint
 save_checkpoint:
-
     ldw        t1,		SCORE(zero)
 
     loop_multipl_ten:
         cmplti      t2,		t1,		10
-        bne		    t2,		zero,		exit_loop
+        bne		    t2,		zero,	exit_loop
         addi		t1,		t1,		-10
         br          loop_multipl_ten
 
@@ -595,7 +511,7 @@ save_checkpoint:
         addi	v0,		zero,		1
         stw		v0,		CP_VALID(zero)
         
-    addi		t1,		zero,		198
+    addi		t1,		zero,		408
 
     copy_loop:
         addi    t1,     t1,     -4
@@ -608,18 +524,15 @@ save_checkpoint:
     checkpoint_ret:
         add		v0,		zero,		zero
         jmp		ra
-        
 ; END: save_checkpoint
 
 
 ; BEGIN: restore_checkpoint
 restore_checkpoint:
-
     ldw		t1,		CP_VALID(zero)
     beq		t1,		zero,		checkpoint_restore_ret
-    
 
-    addi		t1,		zero,		198
+    addi		t1,		zero,		408
     restore_loop:
         addi    t1,     t1,     -4
         ldw     t2,		   CP_HEAD_X(t1)
@@ -632,7 +545,6 @@ restore_checkpoint:
     checkpoint_restore_ret:
         add		v0,		zero,		zero
         jmp		ra
-
 ; END: restore_checkpoint
 
 
@@ -644,9 +556,8 @@ blink_score:
     addi		t7,		zero,		3
 
     loop_blink:
-
         stw        zero,		SEVEN_SEGS(zero)
-        stw        zero,		SEVEN_SEGS+4 (zero)
+        stw        zero,		SEVEN_SEGS+4(zero)
         stw        zero,	    SEVEN_SEGS+8(zero)
         stw        zero,		SEVEN_SEGS+12(zero)
         call        wait_procedure
@@ -654,13 +565,10 @@ blink_score:
         addi        t7,		t7,		-1
         bne		    t7,		zero,		loop_blink
 
-        ldw         ra,		0(sp)
-        addi        sp,		sp,		4
+    ldw         ra,		0(sp)
+    addi        sp,		sp,		4
         
-        jmp		    ra
-    
-        
-
+    jmp		    ra
 ; END: blink_score
 
 ; digit map
